@@ -12,4 +12,4 @@ target-version = "py311"
 select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
-testpaths = ["kafka-es-consumer/tests", "spark/tests"]
+testpaths = ["kafka-es-consumer/tests", "watch-history-consumer/tests"]

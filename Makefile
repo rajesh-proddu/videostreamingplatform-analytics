@@ -1,4 +1,4 @@
-.PHONY: lint test build-consumer build-spark build help
+.PHONY: lint test build-consumer build-watch-history build help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -12,7 +12,7 @@ test: ## Run all tests
 build-consumer: ## Build Kafka→ES consumer Docker image
 	docker build -t videostreamingplatform-kafka-es-consumer:latest kafka-es-consumer/
 
-build-spark: ## Build Spark ingestion Docker image
-	docker build -t videostreamingplatform-spark-ingest:latest spark/
+build-watch-history: ## Build watch history consumer Docker image
+	docker build -t videostreamingplatform-watch-history-consumer:latest watch-history-consumer/
 
-build: build-consumer build-spark ## Build all Docker images
+build: build-consumer build-watch-history ## Build all Docker images
