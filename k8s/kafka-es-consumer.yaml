@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-es-consumer
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-es-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-es-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: videostreamingplatform-kafka-es-consumer:latest
+          env:
+            - name: KAFKA_BROKERS
+              value: kafka.infra.svc.cluster.local:9092
+            - name: KAFKA_VIDEO_TOPIC
+              value: video-events
+            - name: KAFKA_GROUP_ID
+              value: kafka-es-consumer
+            - name: ELASTICSEARCH_URL
+              value: http://elasticsearch.videostreamingplatform.svc.cluster.local:9200
+            - name: ES_VIDEO_INDEX
+              value: videos
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

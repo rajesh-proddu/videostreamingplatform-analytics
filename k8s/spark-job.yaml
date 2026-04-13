@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: watch-history-ingest
+  namespace: analytics
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: spark
+              image: videostreamingplatform-spark-ingest:latest
+              env:
+                - name: KAFKA_BROKERS
+                  value: kafka.infra.svc.cluster.local:9092
+                - name: KAFKA_WATCH_TOPIC
+                  value: watch-events
+                - name: ICEBERG_WAREHOUSE
+                  value: s3a://iceberg-warehouse/
+              resources:
+                requests:
+                  memory: "1Gi"
+                  cpu: "500m"
+                limits:
+                  memory: "2Gi"
+                  cpu: "1000m"
