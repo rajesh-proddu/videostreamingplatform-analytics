@@ -13,4 +13,6 @@ ENV KAFKA_GROUP_ID=kafka-es-consumer
 ENV ELASTICSEARCH_URL=http://localhost:9200
 ENV ES_VIDEO_INDEX=videos
 
+USER nobody
+
 CMD ["python", "-m", "src.consumer"]
