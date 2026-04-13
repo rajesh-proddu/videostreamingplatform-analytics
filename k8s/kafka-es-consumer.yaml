@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: consumer
-          image: videostreamingplatform-kafka-es-consumer:latest
+          image: ghcr.io/rajesh-proddu/videostreamingplatform-analytics/kafka-es-consumer:latest
           env:
             - name: KAFKA_BROKERS
               value: kafka.infra.svc.cluster.local:9092

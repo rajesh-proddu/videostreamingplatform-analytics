@@ -12,7 +12,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: spark
-              image: videostreamingplatform-spark-ingest:latest
+              image: ghcr.io/rajesh-proddu/videostreamingplatform-analytics/spark-ingest:latest
               env:
                 - name: KAFKA_BROKERS
                   value: kafka.infra.svc.cluster.local:9092
