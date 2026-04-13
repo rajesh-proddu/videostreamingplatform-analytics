@@ -60,25 +60,36 @@ TABLES = {
 
 
 def get_catalog() -> object:
-    """Load Iceberg catalog from environment variables."""
-    catalog_name = os.getenv("ICEBERG_CATALOG_NAME", "nessie")
-    catalog_type = os.getenv("ICEBERG_CATALOG_TYPE", "rest")
-    catalog_uri = os.getenv("ICEBERG_CATALOG_URI", "http://localhost:19120/iceberg/")
-    warehouse = os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/")
-    s3_endpoint = os.getenv("S3_ENDPOINT", "http://localhost:9000")
+    """Load Iceberg catalog from environment variables.
 
-    catalog = load_catalog(
-        catalog_name,
-        **{
-            "type": catalog_type,
-            "uri": catalog_uri,
-            "warehouse": warehouse,
-            "s3.endpoint": s3_endpoint,
-            "s3.access-key-id": os.getenv("AWS_ACCESS_KEY_ID", "minioadmin"),
-            "s3.secret-access-key": os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin"),
-            "s3.path-style-access": "true",
-        },
-    )
+    Local dev: uses LocalStack Glue (GLUE_ENDPOINT=http://localhost:4566)
+    AWS:       uses real AWS Glue (no GLUE_ENDPOINT, uses IAM credentials)
+    """
+    catalog_name = os.getenv("ICEBERG_CATALOG_NAME", "glue")
+    warehouse = os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/")
+    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
+    s3_endpoint = os.getenv("S3_ENDPOINT", "")
+    aws_region = os.getenv("AWS_REGION", "us-east-1")
+
+    catalog_props = {
+        "type": "glue",
+        "warehouse": warehouse,
+        "glue.region": aws_region,
+    }
+
+    # LocalStack overrides for local development
+    if glue_endpoint:
+        catalog_props["glue.endpoint"] = glue_endpoint
+        catalog_props["glue.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "test")
+        catalog_props["glue.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
+
+    if s3_endpoint:
+        catalog_props["s3.endpoint"] = s3_endpoint
+        catalog_props["s3.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "test")
+        catalog_props["s3.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
+        catalog_props["s3.path-style-access"] = "true"
+
+    catalog = load_catalog(catalog_name, **catalog_props)
     return catalog
 
 

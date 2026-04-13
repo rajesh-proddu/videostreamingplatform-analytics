@@ -2,12 +2,14 @@
 Kafka → Iceberg consumer for watch history events.
 
 Reads from the 'watch-events' Kafka topic and appends records
-to an Apache Iceberg watch_history table via a Nessie REST catalog.
+to an Apache Iceberg watch_history table via AWS Glue Catalog.
+
+Local dev: uses LocalStack Glue + S3 (set GLUE_ENDPOINT, S3_ENDPOINT)
+AWS:       uses real AWS Glue + S3 (IAM credentials via IRSA/instance profile)
 
 Prerequisites:
-  - Nessie catalog server running (provides REST Iceberg catalog)
-  - MinIO/S3 warehouse bucket created
-  - Table created via catalog-admin (see catalog-admin/admin.py)
+  - Glue database + Iceberg table created via catalog-admin
+  - S3 warehouse bucket exists
 """
 
 import json
@@ -40,6 +42,36 @@ ARROW_SCHEMA = pa.schema([
 BATCH_SIZE = 100
 
 
+def _build_glue_catalog(catalog_name: str) -> object:
+    """Build a Glue-backed Iceberg catalog.
+
+    Detects local vs AWS based on GLUE_ENDPOINT env var.
+    """
+    warehouse = os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/")
+    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
+    s3_endpoint = os.getenv("S3_ENDPOINT", "")
+    aws_region = os.getenv("AWS_REGION", "us-east-1")
+
+    catalog_props = {
+        "type": "glue",
+        "warehouse": warehouse,
+        "glue.region": aws_region,
+    }
+
+    if glue_endpoint:
+        catalog_props["glue.endpoint"] = glue_endpoint
+        catalog_props["glue.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "test")
+        catalog_props["glue.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
+
+    if s3_endpoint:
+        catalog_props["s3.endpoint"] = s3_endpoint
+        catalog_props["s3.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "test")
+        catalog_props["s3.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
+        catalog_props["s3.path-style-access"] = "true"
+
+    return load_catalog(catalog_name, **catalog_props)
+
+
 class WatchHistoryConsumer:
     """Consumes watch events from Kafka and writes to an Iceberg table."""
 
@@ -49,10 +81,6 @@ class WatchHistoryConsumer:
         kafka_topic: str,
         kafka_group_id: str,
         catalog_name: str,
-        catalog_type: str,
-        catalog_uri: str,
-        warehouse: str,
-        s3_endpoint: str,
         table_name: str,
     ):
         self.topic = kafka_topic
@@ -67,18 +95,7 @@ class WatchHistoryConsumer:
             "enable.auto.commit": False,
         })
 
-        self.catalog = load_catalog(
-            catalog_name,
-            **{
-                "type": catalog_type,
-                "uri": catalog_uri,
-                "warehouse": warehouse,
-                "s3.endpoint": s3_endpoint,
-                "s3.access-key-id": os.getenv("AWS_ACCESS_KEY_ID", ""),
-                "s3.secret-access-key": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
-                "s3.path-style-access": "true",
-            },
-        )
+        self.catalog = _build_glue_catalog(catalog_name)
 
         # Table must already exist (created by catalog-admin)
         self.table = self.catalog.load_table(self.table_name)
@@ -170,11 +187,7 @@ def main():
         kafka_brokers=os.getenv("KAFKA_BROKERS", "localhost:9092"),
         kafka_topic=os.getenv("KAFKA_WATCH_TOPIC", "watch-events"),
         kafka_group_id=os.getenv("KAFKA_GROUP_ID", "watch-history-consumer"),
-        catalog_name=os.getenv("ICEBERG_CATALOG_NAME", "nessie"),
-        catalog_type=os.getenv("ICEBERG_CATALOG_TYPE", "rest"),
-        catalog_uri=os.getenv("ICEBERG_CATALOG_URI", "http://localhost:19120/iceberg/"),
-        warehouse=os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/"),
-        s3_endpoint=os.getenv("S3_ENDPOINT", "http://localhost:9000"),
+        catalog_name=os.getenv("ICEBERG_CATALOG_NAME", "glue"),
         table_name=os.getenv("ICEBERG_TABLE", "analytics.watch_history"),
     )
     consumer.start()

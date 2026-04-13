@@ -8,7 +8,12 @@ output "iceberg_warehouse_arn" {
   value       = aws_s3_bucket.iceberg_warehouse.arn
 }
 
+output "glue_database_name" {
+  description = "AWS Glue catalog database name"
+  value       = aws_glue_catalog_database.analytics.name
+}
+
 output "iceberg_readwrite_policy_arn" {
-  description = "IAM policy ARN for Iceberg read/write access"
+  description = "IAM policy ARN for Glue + S3 Iceberg access"
   value       = aws_iam_policy.iceberg_readwrite.arn
 }

@@ -26,27 +26,13 @@ spec:
             - name: KAFKA_GROUP_ID
               value: watch-history-consumer
             - name: ICEBERG_CATALOG_NAME
-              value: nessie
-            - name: ICEBERG_CATALOG_TYPE
-              value: rest
-            - name: ICEBERG_CATALOG_URI
-              value: http://nessie.iceberg.svc.cluster.local:19120/iceberg/
+              value: glue
             - name: ICEBERG_WAREHOUSE
               value: s3://iceberg-warehouse/
-            - name: S3_ENDPOINT
-              value: http://minio.iceberg.svc.cluster.local:9000
             - name: ICEBERG_TABLE
               value: analytics.watch_history
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: minio-credentials
-                  key: access-key
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: minio-credentials
-                  key: secret-key
+            - name: AWS_REGION
+              value: us-east-1
           resources:
             requests:
               memory: "256Mi"
