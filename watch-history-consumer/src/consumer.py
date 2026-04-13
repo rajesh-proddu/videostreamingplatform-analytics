@@ -16,12 +16,11 @@ import json
 import logging
 import os
 import signal
-import sys
 from datetime import datetime, timezone
 
+import pyarrow as pa
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from pyiceberg.catalog import load_catalog
-import pyarrow as pa
 
 logging.basicConfig(
     level=logging.INFO,

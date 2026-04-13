@@ -8,18 +8,17 @@ Run as a K8s Job or locally for catalog operations.
 import argparse
 import logging
 import os
-import sys
 
 from pyiceberg.catalog import load_catalog
+from pyiceberg.partitioning import PartitionField, PartitionSpec
 from pyiceberg.schema import Schema
+from pyiceberg.transforms import DayTransform
 from pyiceberg.types import (
     LongType,
     NestedField,
     StringType,
     TimestamptzType,
 )
-from pyiceberg.partitioning import PartitionSpec, PartitionField
-from pyiceberg.transforms import DayTransform
 
 logging.basicConfig(
     level=logging.INFO,
