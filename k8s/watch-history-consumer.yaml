@@ -26,13 +26,27 @@ spec:
             - name: KAFKA_GROUP_ID
               value: watch-history-consumer
             - name: ICEBERG_CATALOG_NAME
-              value: default
+              value: nessie
+            - name: ICEBERG_CATALOG_TYPE
+              value: rest
             - name: ICEBERG_CATALOG_URI
-              value: sqlite:///data/iceberg-catalog.db
+              value: http://nessie.iceberg.svc.cluster.local:19120/iceberg/
             - name: ICEBERG_WAREHOUSE
-              value: /data/iceberg-warehouse
+              value: s3://iceberg-warehouse/
+            - name: S3_ENDPOINT
+              value: http://minio.iceberg.svc.cluster.local:9000
             - name: ICEBERG_TABLE
-              value: default.watch_history
+              value: analytics.watch_history
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: secret-key
           resources:
             requests:
               memory: "256Mi"
@@ -40,22 +54,3 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "250m"
-          volumeMounts:
-            - name: data
-              mountPath: /data
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: watch-history-data
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: watch-history-data
-  namespace: analytics
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi

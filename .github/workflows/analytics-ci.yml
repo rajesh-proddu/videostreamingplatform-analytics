@@ -29,6 +29,7 @@ jobs:
         run: |
           pip install -r kafka-es-consumer/requirements.txt
           pip install -r watch-history-consumer/requirements.txt
+          pip install -r catalog-admin/requirements.txt
           pip install ruff pytest
 
       - name: Lint
@@ -55,6 +56,8 @@ jobs:
             context: kafka-es-consumer
           - name: watch-history-consumer
             context: watch-history-consumer
+          - name: catalog-admin
+            context: catalog-admin
     steps:
       - uses: actions/checkout@v4
 

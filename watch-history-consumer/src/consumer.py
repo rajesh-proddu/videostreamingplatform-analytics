@@ -2,7 +2,12 @@
 Kafka → Iceberg consumer for watch history events.
 
 Reads from the 'watch-events' Kafka topic and appends records
-to an Apache Iceberg watch_history table using PyIceberg.
+to an Apache Iceberg watch_history table via a Nessie REST catalog.
+
+Prerequisites:
+  - Nessie catalog server running (provides REST Iceberg catalog)
+  - MinIO/S3 warehouse bucket created
+  - Table created via catalog-admin (see catalog-admin/admin.py)
 """
 
 import json
@@ -14,13 +19,6 @@ from datetime import datetime, timezone
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from pyiceberg.catalog import load_catalog
-from pyiceberg.schema import Schema
-from pyiceberg.types import (
-    LongType,
-    NestedField,
-    StringType,
-    TimestamptzType,
-)
 import pyarrow as pa
 
 logging.basicConfig(
@@ -28,16 +26,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("watch-history-consumer")
-
-ICEBERG_SCHEMA = Schema(
-    NestedField(1, "event_type", StringType(), required=True),
-    NestedField(2, "video_id", StringType(), required=True),
-    NestedField(3, "user_id", StringType(), required=True),
-    NestedField(4, "session_id", StringType(), required=True),
-    NestedField(5, "bytes_read", LongType(), required=True),
-    NestedField(6, "event_ts", TimestamptzType(), required=True),
-    NestedField(7, "ingested_at", TimestamptzType(), required=True),
-)
 
 ARROW_SCHEMA = pa.schema([
     ("event_type", pa.string()),
@@ -61,8 +49,10 @@ class WatchHistoryConsumer:
         kafka_topic: str,
         kafka_group_id: str,
         catalog_name: str,
+        catalog_type: str,
         catalog_uri: str,
         warehouse: str,
+        s3_endpoint: str,
         table_name: str,
     ):
         self.topic = kafka_topic
@@ -79,24 +69,23 @@ class WatchHistoryConsumer:
 
         self.catalog = load_catalog(
             catalog_name,
-            **{"uri": catalog_uri, "warehouse": warehouse},
+            **{
+                "type": catalog_type,
+                "uri": catalog_uri,
+                "warehouse": warehouse,
+                "s3.endpoint": s3_endpoint,
+                "s3.access-key-id": os.getenv("AWS_ACCESS_KEY_ID", ""),
+                "s3.secret-access-key": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+                "s3.path-style-access": "true",
+            },
         )
-        self._ensure_table()
+
+        # Table must already exist (created by catalog-admin)
+        self.table = self.catalog.load_table(self.table_name)
+        logger.info(f"Loaded table: {self.table_name} (location: {self.table.metadata.location})")
 
         signal.signal(signal.SIGTERM, self._shutdown)
         signal.signal(signal.SIGINT, self._shutdown)
-
-    def _ensure_table(self):
-        """Create the Iceberg table if it doesn't exist."""
-        try:
-            self.table = self.catalog.load_table(self.table_name)
-            logger.info(f"Loaded existing table: {self.table_name}")
-        except Exception:
-            self.table = self.catalog.create_table(
-                self.table_name,
-                schema=ICEBERG_SCHEMA,
-            )
-            logger.info(f"Created table: {self.table_name}")
 
     def _shutdown(self, signum, frame):
         logger.info("Shutdown signal received, flushing batch and stopping...")
@@ -181,10 +170,12 @@ def main():
         kafka_brokers=os.getenv("KAFKA_BROKERS", "localhost:9092"),
         kafka_topic=os.getenv("KAFKA_WATCH_TOPIC", "watch-events"),
         kafka_group_id=os.getenv("KAFKA_GROUP_ID", "watch-history-consumer"),
-        catalog_name=os.getenv("ICEBERG_CATALOG_NAME", "default"),
-        catalog_uri=os.getenv("ICEBERG_CATALOG_URI", "sqlite:///tmp/iceberg-catalog.db"),
-        warehouse=os.getenv("ICEBERG_WAREHOUSE", "/tmp/iceberg-warehouse"),
-        table_name=os.getenv("ICEBERG_TABLE", "default.watch_history"),
+        catalog_name=os.getenv("ICEBERG_CATALOG_NAME", "nessie"),
+        catalog_type=os.getenv("ICEBERG_CATALOG_TYPE", "rest"),
+        catalog_uri=os.getenv("ICEBERG_CATALOG_URI", "http://localhost:19120/iceberg/"),
+        warehouse=os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/"),
+        s3_endpoint=os.getenv("S3_ENDPOINT", "http://localhost:9000"),
+        table_name=os.getenv("ICEBERG_TABLE", "analytics.watch_history"),
     )
     consumer.start()
 
