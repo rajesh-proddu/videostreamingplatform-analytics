@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watch-history-consumer
+  namespace: analytics
+  labels:
+    app: watch-history-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watch-history-consumer
+  template:
+    metadata:
+      labels:
+        app: watch-history-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: ghcr.io/rajesh-proddu/videostreamingplatform-analytics/watch-history-consumer:latest
+          env:
+            - name: KAFKA_BROKERS
+              value: kafka.infra.svc.cluster.local:9092
+            - name: KAFKA_WATCH_TOPIC
+              value: watch-events
+            - name: KAFKA_GROUP_ID
+              value: watch-history-consumer
+            - name: ICEBERG_CATALOG_NAME
+              value: default
+            - name: ICEBERG_CATALOG_URI
+              value: sqlite:///data/iceberg-catalog.db
+            - name: ICEBERG_WAREHOUSE
+              value: /data/iceberg-warehouse
+            - name: ICEBERG_TABLE
+              value: default.watch_history
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: watch-history-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: watch-history-data
+  namespace: analytics
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r kafka-es-consumer/requirements.txt
-          pip install -r spark/requirements.txt
+          pip install -r watch-history-consumer/requirements.txt
           pip install ruff pytest
 
       - name: Lint
@@ -37,8 +37,8 @@ jobs:
       - name: Test Kafka→ES consumer
         run: pytest kafka-es-consumer/tests/ -v
 
-      - name: Test Spark ingestion
-        run: pytest spark/tests/ -v
+      - name: Test Watch History consumer
+        run: pytest watch-history-consumer/tests/ -v
 
   build-and-push:
     if: github.event_name == 'push'
@@ -53,8 +53,8 @@ jobs:
         service:
           - name: kafka-es-consumer
             context: kafka-es-consumer
-          - name: spark-ingest
-            context: spark
+          - name: watch-history-consumer
+            context: watch-history-consumer
     steps:
       - uses: actions/checkout@v4
 
