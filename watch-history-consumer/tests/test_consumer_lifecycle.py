@@ -1,7 +1,6 @@
 """Tests for WatchHistoryConsumer lifecycle: start loop, shutdown, _build_glue_catalog, main."""
 
 import json
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest

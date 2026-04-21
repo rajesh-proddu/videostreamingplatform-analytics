@@ -1,7 +1,7 @@
 """Tests for VideoEventConsumer lifecycle: start loop, shutdown, main entry point."""
 
 import json
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 from kafka_es_consumer.src.consumer import VideoEventConsumer, main
