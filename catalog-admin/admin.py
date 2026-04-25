@@ -61,22 +61,41 @@ TABLES = {
 def get_catalog() -> object:
     """Load Iceberg catalog from environment variables.
 
-    Local dev: uses LocalStack Glue (GLUE_ENDPOINT=http://localhost:4566)
-    AWS:       uses real AWS Glue (no GLUE_ENDPOINT, uses IAM credentials)
+    Supports two catalog types:
+      - "rest"  — Iceberg REST catalog (local dev via tabulario/iceberg-rest + MinIO)
+      - "glue"  — AWS Glue catalog (production, or LocalStack Pro for local dev)
+
+    Set ICEBERG_CATALOG_TYPE to select. Defaults to "glue" for backward compat.
     """
     catalog_name = os.getenv("ICEBERG_CATALOG_NAME", "glue")
+    catalog_type = os.getenv("ICEBERG_CATALOG_TYPE", "glue")
     warehouse = os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/")
-    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
     s3_endpoint = os.getenv("S3_ENDPOINT", "")
     aws_region = os.getenv("AWS_REGION", "us-east-1")
 
+    if catalog_type == "rest":
+        rest_uri = os.getenv("ICEBERG_REST_URI", "http://localhost:8181")
+        catalog_props = {
+            "type": "rest",
+            "uri": rest_uri,
+            "warehouse": warehouse,
+            "s3.region": aws_region,
+        }
+        if s3_endpoint:
+            catalog_props["s3.endpoint"] = s3_endpoint
+            catalog_props["s3.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
+            catalog_props["s3.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin")
+            catalog_props["s3.path-style-access"] = "true"
+        return load_catalog(catalog_name, **catalog_props)
+
+    # Glue catalog (default)
+    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
     catalog_props = {
         "type": "glue",
         "warehouse": warehouse,
         "glue.region": aws_region,
     }
 
-    # LocalStack overrides for local development
     if glue_endpoint:
         catalog_props["glue.endpoint"] = glue_endpoint
         catalog_props["glue.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "test")
@@ -88,8 +107,7 @@ def get_catalog() -> object:
         catalog_props["s3.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
         catalog_props["s3.path-style-access"] = "true"
 
-    catalog = load_catalog(catalog_name, **catalog_props)
-    return catalog
+    return load_catalog(catalog_name, **catalog_props)
 
 
 def cmd_create_tables(args):

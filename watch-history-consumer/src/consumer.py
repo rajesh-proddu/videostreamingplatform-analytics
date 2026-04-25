@@ -41,16 +41,37 @@ ARROW_SCHEMA = pa.schema([
 BATCH_SIZE = 100
 
 
-def _build_glue_catalog(catalog_name: str) -> object:
-    """Build a Glue-backed Iceberg catalog.
+def _build_catalog(catalog_name: str) -> object:
+    """Build an Iceberg catalog from environment variables.
 
-    Detects local vs AWS based on GLUE_ENDPOINT env var.
+    Supports two catalog types:
+      - "rest"  — Iceberg REST catalog (local dev via tabulario/iceberg-rest + MinIO)
+      - "glue"  — AWS Glue catalog (production, or LocalStack Pro for local dev)
+
+    Set ICEBERG_CATALOG_TYPE to select. Defaults to "glue" for backward compat.
     """
+    catalog_type = os.getenv("ICEBERG_CATALOG_TYPE", "glue")
     warehouse = os.getenv("ICEBERG_WAREHOUSE", "s3://iceberg-warehouse/")
-    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
     s3_endpoint = os.getenv("S3_ENDPOINT", "")
     aws_region = os.getenv("AWS_REGION", "us-east-1")
 
+    if catalog_type == "rest":
+        rest_uri = os.getenv("ICEBERG_REST_URI", "http://localhost:8181")
+        catalog_props = {
+            "type": "rest",
+            "uri": rest_uri,
+            "warehouse": warehouse,
+            "s3.region": aws_region,
+        }
+        if s3_endpoint:
+            catalog_props["s3.endpoint"] = s3_endpoint
+            catalog_props["s3.access-key-id"] = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
+            catalog_props["s3.secret-access-key"] = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin")
+            catalog_props["s3.path-style-access"] = "true"
+        return load_catalog(catalog_name, **catalog_props)
+
+    # Glue catalog (default)
+    glue_endpoint = os.getenv("GLUE_ENDPOINT", "")
     catalog_props = {
         "type": "glue",
         "warehouse": warehouse,
@@ -94,7 +115,7 @@ class WatchHistoryConsumer:
             "enable.auto.commit": False,
         })
 
-        self.catalog = _build_glue_catalog(catalog_name)
+        self.catalog = _build_catalog(catalog_name)
 
         # Table must already exist (created by catalog-admin)
         self.table = self.catalog.load_table(self.table_name)
