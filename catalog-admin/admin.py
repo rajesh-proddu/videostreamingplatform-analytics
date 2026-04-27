@@ -31,14 +31,18 @@ logger = logging.getLogger("catalog-admin")
 
 TABLES = {
     "analytics.watch_history": {
+        # Fields are nullable to match the consumer's PyArrow schema, which
+        # builds nullable columns by default. A mismatch (table=required vs
+        # df=optional) causes pyiceberg's `_check_pyarrow_schema_compatible`
+        # to reject every append.
         "schema": Schema(
-            NestedField(1, "event_type", StringType(), required=True),
-            NestedField(2, "video_id", StringType(), required=True),
-            NestedField(3, "user_id", StringType(), required=True),
-            NestedField(4, "session_id", StringType(), required=True),
-            NestedField(5, "bytes_read", LongType(), required=True),
-            NestedField(6, "event_ts", TimestamptzType(), required=True),
-            NestedField(7, "ingested_at", TimestamptzType(), required=True),
+            NestedField(1, "event_type", StringType(), required=False),
+            NestedField(2, "video_id", StringType(), required=False),
+            NestedField(3, "user_id", StringType(), required=False),
+            NestedField(4, "session_id", StringType(), required=False),
+            NestedField(5, "bytes_read", LongType(), required=False),
+            NestedField(6, "event_ts", TimestamptzType(), required=False),
+            NestedField(7, "ingested_at", TimestamptzType(), required=False),
         ),
         "partition_spec": PartitionSpec(
             PartitionField(

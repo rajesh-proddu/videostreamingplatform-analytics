@@ -139,6 +139,7 @@ class WatchHistoryConsumer:
                 if msg is None:
                     if self.batch:
                         self._flush_batch()
+                        self.consumer.commit(asynchronous=False)
                     continue
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
@@ -157,6 +158,7 @@ class WatchHistoryConsumer:
         finally:
             if self.batch:
                 self._flush_batch()
+                self.consumer.commit(asynchronous=False)
             self.consumer.close()
             logger.info("Consumer closed")
 
