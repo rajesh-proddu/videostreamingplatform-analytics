@@ -8,6 +8,7 @@ Run as a K8s Job or locally for catalog operations.
 import argparse
 import logging
 import os
+import sys
 
 from pyiceberg.catalog import load_catalog
 from pyiceberg.partitioning import PartitionField, PartitionSpec
@@ -212,3 +213,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # PyIceberg/boto3 leave non-daemon threads alive (credentials refresh,
+    # S3 transfer pool) that prevent natural interpreter exit when run as a
+    # one-shot Job. Force-exit so the K8s Job actually completes.
+    sys.exit(0)
